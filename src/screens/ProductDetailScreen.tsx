@@ -34,10 +34,9 @@ import ProgressBar from 'react-native-animated-progress';
 import {CircularProgressBase} from 'react-native-circular-progress-indicator';
 import ActionSheet, {SheetManager} from 'react-native-actions-sheet';
 
-const {width, height} = Dimensions.get('window');
+const windowHeight = Dimensions.get('window').height;
 
 const ProductDetailScreen = () => {
-  // const scrollFunc = useRef(false);
   const renderTabBar = (
     props: SceneRendererProps & {navigationState: State},
   ) => (
@@ -215,7 +214,7 @@ const ProductDetailScreen = () => {
 
     return (
       <ScrollView
-        // nestedScrollEnabled={scrollEnabled}
+        // nestedScrollEnabled={true}
         ref={scrollRef}
         // scrollEnabled={scrollFunc.current}
         showsVerticalScrollIndicator={false}
@@ -575,7 +574,6 @@ const ProductDetailScreen = () => {
   const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
   const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-  const [scrollEnabled, setScrollEnabled] = useState(false);
   const scrollRef = useRef();
 
   const insets = useSafeAreaInsets();
@@ -603,10 +601,6 @@ const ProductDetailScreen = () => {
     extrapolate: 'clamp',
   });
 
-  // useEffect(() => {
-  //   console.log(TextOpacity);
-  // }, [TextOpacity]);
-
   const titleScale = scrollY.interpolate({
     inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
     outputRange: [1, 1, 0.8],
@@ -621,21 +615,6 @@ const ProductDetailScreen = () => {
   if (Platform.OS === 'android') {
     UIManager.setLayoutAnimationEnabledExperimental(true);
   }
-
-  // const changeLayout = () => {
-  //   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  //   if (selectedIndex == 1) {
-  //     setReturnHeight(true);
-  //   } else if (selectedIndex == 0) {
-  //     setReturnHeight(false);
-  //   } else if (selectedIndex == 2) {
-  //     setReturnHeight(true);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   changeLayout();
-  // }, [selectedIndex]);
 
   const toggleExpand = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -655,16 +634,6 @@ const ProductDetailScreen = () => {
 
   return (
     <View style={styles.fill}>
-      {/* <Animated.View style={[{marginTop: HEADER_MAX_HEIGHT, width:'100%', height:'100%'}, {transform: [{translateY: headerTranslate}]}]}>
-      <TabView
-        navigationState={{index, routes}}
-        renderScene={renderScene}
-        onIndexChange={setIndex}
-        initialLayout={initialLayout}
-        renderTabBar={renderTabBar}
-        style={styles.containerTabView}
-      />
-      </Animated.View> */}
       <Animated.ScrollView
         // nestedScrollEnabled={true}
         style={styles.fill}
@@ -676,10 +645,14 @@ const ProductDetailScreen = () => {
             useNativeDriver: true,
             listener: event => {
               const offsetY = event.nativeEvent.contentOffset.y;
-              if (offsetY >= HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT -1) {
+              // console.log('offset', offsetY);
+              if (offsetY >= HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT - 0.1) {
                 // setScrollEnabled(true);
-                console.log('offset', offsetY);
-                scrollRef?.current?.setNativeProps({ nestedScrollEnabled: true });
+                scrollRef?.current?.setNativeProps({nestedScrollEnabled: true});
+              } else if (offsetY == 0) {
+                scrollRef?.current?.setNativeProps({
+                  nestedScrollEnabled: false,
+                });
               }
             },
           },
@@ -689,12 +662,10 @@ const ProductDetailScreen = () => {
         }}
         contentOffset={{
           y: -HEADER_MAX_HEIGHT,
-        }}
-        // onScrollEndDrag={()=> {scrollFunc.current = true, console.log('end')}}
-      >
+        }}>
         <View
           style={[
-            {marginTop: HEADER_MAX_HEIGHT, width: '100%', height: height - 73},
+            {marginTop: HEADER_MAX_HEIGHT, width: '100%', height: windowHeight - 73},
           ]}>
           <TabView
             navigationState={{index, routes}}
