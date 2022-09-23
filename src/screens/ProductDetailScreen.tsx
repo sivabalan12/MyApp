@@ -2,7 +2,6 @@ import React, {useRef, useEffect, useState} from 'react';
 import {
   Text,
   View,
-  Animated,
   StyleSheet,
   TouchableOpacity,
   Platform,
@@ -33,8 +32,18 @@ import {
 import ProgressBar from 'react-native-animated-progress';
 import {CircularProgressBase} from 'react-native-circular-progress-indicator';
 import ActionSheet, {SheetManager} from 'react-native-actions-sheet';
-
-const windowHeight = Dimensions.get('window').height;
+import {
+  MaterialTabBar,
+  MaterialTabItem,
+  Tabs,
+  useCurrentTabScrollY,
+} from '../react-native-collapsible-view/src';
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 const ProductDetailScreen = () => {
   const renderTabBar = (
@@ -454,8 +463,6 @@ const ProductDetailScreen = () => {
     return (
       <ScrollView
         nestedScrollEnabled={true}
-        // onScroll={event =}
-        // scrollEnabled={scrollFunc.current}
         showsVerticalScrollIndicator={false}
         style={[styles.fill, {backgroundColor: NeutralColors.light35}]}>
         <View style={{marginTop: 16, marginHorizontal: 16}}>
@@ -561,59 +568,22 @@ const ProductDetailScreen = () => {
     title: string;
   }>;
 
-  const renderScene = SceneMap({
-    first: SustainabilityTab,
-    second: HealthTab,
-    third: ThirdRoute,
-    fourth: ThirdRoute,
-    fifth: ThirdRoute,
-  });
   const [expanded, setExpanded] = useState(false);
-  const HEADER_MAX_HEIGHT = expanded ? 463 : 392;
+  // const HEADER_MAX_HEIGHT = expanded ? 463 : 392;
+  const HEADER_MAX_HEIGHT = useSharedValue({height: 392});
   const HEADER_MIN_HEIGHT = 73;
-  const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+  const HEADER_SCROLL_DISTANCE =
+    HEADER_MAX_HEIGHT.value.height - HEADER_MIN_HEIGHT;
   const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
   const scrollRef = useRef();
 
   const insets = useSafeAreaInsets();
-  const scrollY = useRef(new Animated.Value(0)).current;
-
-  const headerTranslate = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, -HEADER_SCROLL_DISTANCE],
-    extrapolate: 'clamp',
-  });
-
-  const imageOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [1, 1, 0],
-    extrapolate: 'clamp',
-  });
-  const TextOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, 0, 1],
-    extrapolate: 'clamp',
-  });
-  const imageTranslate = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, 100],
-    extrapolate: 'clamp',
-  });
-
-  const titleScale = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [1, 1, 0.8],
-    extrapolate: 'clamp',
-  });
-  const titleTranslate = scrollY.interpolate({
-    inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
-    outputRange: [0, 0, -8],
-    extrapolate: 'clamp',
-  });
 
   if (Platform.OS === 'android') {
-    UIManager.setLayoutAnimationEnabledExperimental(true);
+    if (UIManager.setLayoutAnimationEnabledExperimental) {
+      UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
   }
 
   const toggleExpand = () => {
@@ -621,73 +591,79 @@ const ProductDetailScreen = () => {
     setExpanded(previousState => !previousState);
   };
 
-  const initialLayout = {width: Dimensions.get('window').width};
+  const Header = () => {
+    const scrollY = useCurrentTabScrollY();
 
-  const [index, setIndex] = useState(0);
-  const [routes] = useState([
-    {key: 'first', title: 'Sustainability', icon: Icons.sustainability},
-    {key: 'second', title: 'Health', icon: Icons.health},
-    {key: 'third', title: 'Reviews', icon: Icons.reviews},
-    {key: 'fourth', title: 'Recycling', icon: Icons.recycling},
-    {key: 'fifth', title: 'Product Info', icon: Icons.info},
-  ]);
+    const animation = useSharedValue({height: 53});
 
-  return (
-    <View style={styles.fill}>
-      <Animated.ScrollView
-        // nestedScrollEnabled={true}
-        style={styles.fill}
-        scrollEventThrottle={1}
-        showsVerticalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{nativeEvent: {contentOffset: {y: scrollY}}}],
+    const animationStyle = useAnimatedStyle(() => {
+      return {
+        height: withTiming(animation.value.height, {
+          duration: 600,
+        }),
+      };
+    });
+
+    const animationStyle1 = useAnimatedStyle(() => {
+      return {
+        height: withTiming(HEADER_MAX_HEIGHT.value.height, {
+          duration: 600,
+        }),
+      };
+    });
+
+    const toggleExpand = () => {
+      if (animation.value.height === 53) {
+        setExpanded(true);
+        animation.value = {height: 124};
+        HEADER_MAX_HEIGHT.value = {height: 463};
+      } else {
+        setExpanded(false);
+        animation.value = {height: 53};
+        HEADER_MAX_HEIGHT.value = {height: 392};
+      }
+    };
+
+    const headerAnim = useAnimatedStyle(() => {
+      return {
+        opacity: interpolate(
+          scrollY.value,
+          [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE - HEADER_MIN_HEIGHT],
+          [1, 0.4, 0],
+        ),
+        transform: [
           {
-            useNativeDriver: true,
-            listener: event => {
-              const offsetY = event.nativeEvent.contentOffset.y;
-              // console.log('offset', offsetY);
-              if (offsetY >= HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT - 0.1) {
-                // setScrollEnabled(true);
-                scrollRef?.current?.setNativeProps({nestedScrollEnabled: true});
-              } else if (offsetY == 0) {
-                scrollRef?.current?.setNativeProps({
-                  nestedScrollEnabled: false,
-                });
-              }
-            },
+            translateY: interpolate(
+              scrollY.value,
+              [0, HEADER_SCROLL_DISTANCE],
+              [0, 50],
+            ),
           },
-        )}
-        contentInset={{
-          top: HEADER_MAX_HEIGHT,
-        }}
-        contentOffset={{
-          y: -HEADER_MAX_HEIGHT,
-        }}>
-        <View
-          style={[
-            {marginTop: HEADER_MAX_HEIGHT, width: '100%', height: windowHeight - 73},
-          ]}>
-          <TabView
-            navigationState={{index, routes}}
-            renderScene={renderScene}
-            onIndexChange={setIndex}
-            initialLayout={initialLayout}
-            renderTabBar={renderTabBar}
-          />
-        </View>
-      </Animated.ScrollView>
+        ],
+      };
+    }, [scrollY]);
+
+    const headerAnim1 = useAnimatedStyle(() => {
+      return {
+        opacity: interpolate(
+          scrollY.value,
+          [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE - HEADER_MIN_HEIGHT],
+          [0, 0.4, 1],
+        ),
+      };
+    }, [scrollY]);
+
+    return (
       <Animated.View
-        // pointerEvents="none"
         style={[
-          {height: HEADER_MAX_HEIGHT},
-          styles.header,
-          {transform: [{translateY: headerTranslate}]},
+          {
+            // height: HEADER_MAX_HEIGHT.value.height,
+            width: '100%',
+            backgroundColor: NeutralColors.light0,
+          },
+          animationStyle1,
         ]}>
-        <Animated.View
-          style={{
-            opacity: imageOpacity,
-            transform: [{translateY: imageTranslate}],
-          }}>
+        <Animated.View style={[headerAnim]}>
           <View
             style={{
               width: '100%',
@@ -706,7 +682,7 @@ const ProductDetailScreen = () => {
                 backgroundColor: Opacity.black200,
               }}>
               <View style={{}}>
-                <AnimatedTouchable
+                <TouchableOpacity
                   onPress={() => console.log('test onPress')}
                   style={{
                     zIndex: 2,
@@ -714,7 +690,6 @@ const ProductDetailScreen = () => {
                     left: 20,
                     position: 'absolute',
                     backgroundColor: Opacity.tangaroa300,
-                    //   backgroundColor: '#fff',
                     height: 32,
                     width: 32,
                     borderRadius: 16,
@@ -726,8 +701,8 @@ const ProductDetailScreen = () => {
                     style={{width: 18, height: 18}}
                     tintColor={'white'}
                   />
-                </AnimatedTouchable>
-                <AnimatedTouchable
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={() => console.log('test onPress')}
                   style={{
                     zIndex: 2,
@@ -735,7 +710,6 @@ const ProductDetailScreen = () => {
                     position: 'absolute',
                     right: 20,
                     backgroundColor: Opacity.tangaroa300,
-                    //   backgroundColor: '#fff',
                     height: 32,
                     width: 32,
                     borderRadius: 16,
@@ -747,8 +721,8 @@ const ProductDetailScreen = () => {
                     style={{width: 18, height: 18}}
                     tintColor={'white'}
                   />
-                </AnimatedTouchable>
-                <AnimatedTouchable
+                </TouchableOpacity>
+                <TouchableOpacity
                   onPress={() => console.log('test onPress')}
                   style={{
                     zIndex: 2,
@@ -756,7 +730,6 @@ const ProductDetailScreen = () => {
                     position: 'absolute',
                     right: 64,
                     backgroundColor: Opacity.tangaroa300,
-                    //   backgroundColor: '#fff',
                     height: 32,
                     width: 32,
                     borderRadius: 16,
@@ -768,7 +741,7 @@ const ProductDetailScreen = () => {
                     style={{width: 18, height: 18}}
                     tintColor={'white'}
                   />
-                </AnimatedTouchable>
+                </TouchableOpacity>
               </View>
             </View>
             <View
@@ -797,32 +770,27 @@ const ProductDetailScreen = () => {
               fontType="TITLE3MED"
               title="Penne Rigate"
               color={NeutralColors.mid400}
-              // style={{marginBottom:4}}
             />
             <AppFont
               fontType="CAPTION1REG"
               title="Barilla Group"
               color={NeutralColors.mid90}
-              // style={{marginBottom:4}}
             />
           </View>
           <AnimatedTouchable
             onPress={() => toggleExpand()}
-            style={{
-              zIndex: 2,
-              // top: 196,
-              // right: 20,
-              // position: 'absolute',
-              // backgroundColor: Opacity.tangaroa300,
-              height: expanded ? 124 : 53,
-              marginHorizontal: 16,
-              borderRadius: 16,
-              // alignItems: 'center',
-              // justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: NeutralColors.light40,
-              marginTop: 20,
-            }}>
+            style={[
+              {
+                zIndex: 2,
+                // height: expanded ? 124 : 53,
+                marginHorizontal: 16,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: NeutralColors.light40,
+                marginTop: 20,
+              },
+              animationStyle,
+            ]}>
             <View
               style={{
                 flexDirection: 'row',
@@ -835,7 +803,6 @@ const ProductDetailScreen = () => {
                   fontType="CAPTION1MED"
                   title="Advanced"
                   color={SemanticColors.positive2_600}
-                  // style={{marginBottom:4}}
                 />
                 <View style={{top: 6}}>
                   <Rating
@@ -869,14 +836,13 @@ const ProductDetailScreen = () => {
               </View>
             )}
           </AnimatedTouchable>
-          <AnimatedTouchable
+          <TouchableOpacity
             onPress={() => console.log('test onPress')}
             style={{
               zIndex: 2,
               top: 196,
               right: 20,
               position: 'absolute',
-              // backgroundColor: Opacity.tangaroa300,
               height: 34,
               width: 138,
               borderRadius: 17,
@@ -890,7 +856,6 @@ const ProductDetailScreen = () => {
                 fontType="CAPTION2MED"
                 title="Company Page"
                 color={NeutralColors.mid400}
-                // style={{marginBottom:4}}
               />
               <View style={{justifyContent: 'center', alignItems: 'center'}}>
                 <FastImage
@@ -900,7 +865,7 @@ const ProductDetailScreen = () => {
                 />
               </View>
             </View>
-          </AnimatedTouchable>
+          </TouchableOpacity>
         </Animated.View>
         <Animated.View
           style={[
@@ -911,15 +876,12 @@ const ProductDetailScreen = () => {
               left: 0,
               right: 0,
             },
-            {
-              opacity: TextOpacity,
-            },
+            headerAnim1,
           ]}>
           <AppFont
             fontType="CAPTION1REG"
             title="Penne Rigate"
             color={NeutralColors.mid80}
-            // style={{marginBottom:4}}
           />
           <View
             style={{
@@ -927,43 +889,98 @@ const ProductDetailScreen = () => {
               height: 1,
               backgroundColor: NeutralColors.light40,
               position: 'absolute',
-              bottom: -20,
+              bottom: -16,
             }}></View>
         </Animated.View>
       </Animated.View>
-      <ActionSheet
-        id={'pallete'}
-        containerStyle={styles.actionSheet}
-        gestureEnabled={true}
-        indicatorStyle={{
-          backgroundColor: NeutralColors.light40,
-          width: 32,
-          marginTop: 10,
-        }}>
-        <View>
+    );
+  };
+
+  return (
+    <Tabs.Container
+      renderHeader={() => <Header />}
+      headerHeight={HEADER_MAX_HEIGHT.value.height} // optional
+      minHeaderHeight={HEADER_MIN_HEIGHT}
+      renderTabBar={props => (
+        <MaterialTabBar
+          {...props}
+          scrollEnabled
+          style={styles.tabBar}
+          indicatorStyle={styles.indicator}
+          tabStyle={styles.tabStyle}
+          TabItemComponent={itemProps => (
+            <MaterialTabItem
+              {...itemProps}
+              pressColor={'transparent'}
+              activeColor={NeutralColors.mid400}
+              inactiveColor={NeutralColors.mid90}
+            />
+          )}
+        />
+      )}
+      containerStyle={{backgroundColor: NeutralColors.light35}}
+      >
+      <Tabs.Tab
+        name="Sustainability"
+        label="Sustainability"
+        icon={Icons.sustainability}>
+        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+          <SustainabilityTab />
+        </Tabs.ScrollView>
+        <ActionSheet
+          id={'pallete'}
+          containerStyle={styles.actionSheet}
+          gestureEnabled={true}
+          indicatorStyle={{
+            backgroundColor: NeutralColors.light40,
+            width: 32,
+            marginTop: 10,
+          }}>
           <View>
-            <TouchableOpacity
-              onPress={() => SheetManager.hide('pallete')}
-              style={{
-                position: 'absolute',
-                right: 20,
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: NeutralColors.light30,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-              <FastImage
-                source={Icons.close}
-                style={{width: 14, height: 14}}
-                tintColor={NeutralColors.mid100}
-              />
-            </TouchableOpacity>
+            <View>
+              <TouchableOpacity
+                onPress={() => SheetManager.hide('pallete')}
+                style={{
+                  position: 'absolute',
+                  right: 20,
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: NeutralColors.light30,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                <FastImage
+                  source={Icons.close}
+                  style={{width: 14, height: 14}}
+                  tintColor={NeutralColors.mid100}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ActionSheet>
-    </View>
+        </ActionSheet>
+      </Tabs.Tab>
+      <Tabs.Tab name="Health" label="Health" icon={Icons.health}>
+        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+          <HealthTab />
+        </Tabs.ScrollView>
+      </Tabs.Tab>
+      <Tabs.Tab name="Reviews" label="Reviews" icon={Icons.reviews}>
+        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+          <ThirdRoute />
+        </Tabs.ScrollView>
+      </Tabs.Tab>
+      <Tabs.Tab name="Recycling" label="Recycling" icon={Icons.recycling}>
+        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+          <ThirdRoute />
+        </Tabs.ScrollView>
+      </Tabs.Tab>
+      <Tabs.Tab name="Product Info" label="Product Info" icon={Icons.info}>
+        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+          <ThirdRoute />
+        </Tabs.ScrollView>
+      </Tabs.Tab>
+    </Tabs.Container>
   );
 };
 
@@ -971,20 +988,10 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  header: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: NeutralColors.light0,
-    overflow: 'hidden',
-    // height: HEADER_MAX_HEIGHT,
-  },
   indicator: {
     height: 3,
     backgroundColor: NeutralColors.mid400,
     borderRadius: 2,
-    width: 0.8,
   },
   tabBar: {
     backgroundColor: NeutralColors.light0,
@@ -993,13 +1000,23 @@ const styles = StyleSheet.create({
   },
   tabStyle: {
     width: 'auto',
-    marginHorizontal: 6,
+    marginHorizontal: 4,
   },
   actionSheet: {
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
     backgroundColor: NeutralColors.light0,
     height: 400,
+  },
+  box: {
+    height: 250,
+    width: '100%',
+  },
+  boxA: {
+    backgroundColor: 'white',
+  },
+  boxB: {
+    backgroundColor: '#D8D8D8',
   },
 });
 

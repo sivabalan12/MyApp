@@ -42,6 +42,6 @@ export type FontTypes =
 export interface AppFontInterface {
   fontType: FontTypes;
   title: string;
-  color: string;
+  color?: string;
   style?: TextStyle
 }
