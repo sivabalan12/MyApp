@@ -39,48 +39,16 @@ import {
   useCurrentTabScrollY,
 } from '../react-native-collapsible-view/src';
 import Animated, {
+  Easing,
   interpolate,
   useAnimatedStyle,
+  useDerivedValue,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
 
 const ProductDetailScreen = () => {
-  const renderTabBar = (
-    props: SceneRendererProps & {navigationState: State},
-  ) => (
-    <TabBar
-      {...props}
-      scrollEnabled
-      indicatorStyle={styles.indicator}
-      style={styles.tabBar}
-      tabStyle={styles.tabStyle}
-      renderLabel={renderLabel}
-      renderIcon={renderIcon}
-      pressColor={'transparent'}
-    />
-  );
-  const renderLabel = ({route, focused}) => {
-    return (
-      <AppFont
-        fontType="CAPTION2MED"
-        title={route.title}
-        color={focused ? NeutralColors.mid400 : NeutralColors.mid90}
-      />
-    );
-  };
 
-  const renderIcon = ({route, focused}) => {
-    return (
-      <View style={{width: 22, height: 22, marginTop: -6, marginBottom: 2}}>
-        <FastImage
-          source={route.icon}
-          style={{width: '100%', height: '100%'}}
-          tintColor={focused ? NeutralColors.mid400 : NeutralColors.mid90}
-        />
-      </View>
-    );
-  };
 
   const SustainabilityTab = () => {
     const [index, setIndex] = useState(0);
@@ -568,8 +536,6 @@ const ProductDetailScreen = () => {
     title: string;
   }>;
 
-  const [expanded, setExpanded] = useState(false);
-  // const HEADER_MAX_HEIGHT = expanded ? 463 : 392;
   const HEADER_MAX_HEIGHT = useSharedValue({height: 392});
   const HEADER_MIN_HEIGHT = 73;
   const HEADER_SCROLL_DISTANCE =
@@ -586,15 +552,12 @@ const ProductDetailScreen = () => {
     }
   }
 
-  const toggleExpand = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpanded(previousState => !previousState);
-  };
-
   const Header = () => {
     const scrollY = useCurrentTabScrollY();
 
     const animation = useSharedValue({height: 53});
+    const AdvancedTextOpacity = useSharedValue(0);
+    const IconRotation = useSharedValue(0);
 
     const animationStyle = useAnimatedStyle(() => {
       return {
@@ -604,23 +567,36 @@ const ProductDetailScreen = () => {
       };
     });
 
-    const animationStyle1 = useAnimatedStyle(() => {
+    const AdvancedTextStyle = useAnimatedStyle(() => {
       return {
-        height: withTiming(HEADER_MAX_HEIGHT.value.height, {
-          duration: 600,
+        opacity: withTiming(AdvancedTextOpacity.value, {
+          duration: 300,
         }),
+      };
+    });
+
+    const rotateZ = useDerivedValue(() => {
+      return withTiming(IconRotation.value, {
+        duration: 100,
+        easing: Easing.linear,
+      });
+    });
+    
+    const IconRotationStyle = useAnimatedStyle(() => {
+      return {
+        transform: [{rotate: `${rotateZ.value}deg`}],
       };
     });
 
     const toggleExpand = () => {
       if (animation.value.height === 53) {
-        setExpanded(true);
         animation.value = {height: 124};
-        HEADER_MAX_HEIGHT.value = {height: 463};
+        AdvancedTextOpacity.value = 1;
+        IconRotation.value = 180;
       } else {
-        setExpanded(false);
         animation.value = {height: 53};
-        HEADER_MAX_HEIGHT.value = {height: 392};
+        AdvancedTextOpacity.value = 0;
+        IconRotation.value = 0;
       }
     };
 
@@ -628,7 +604,11 @@ const ProductDetailScreen = () => {
       return {
         opacity: interpolate(
           scrollY.value,
-          [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE - HEADER_MIN_HEIGHT],
+          [
+            0,
+            HEADER_SCROLL_DISTANCE / 2,
+            HEADER_SCROLL_DISTANCE - HEADER_MIN_HEIGHT,
+          ],
           [1, 0.4, 0],
         ),
         transform: [
@@ -647,7 +627,11 @@ const ProductDetailScreen = () => {
       return {
         opacity: interpolate(
           scrollY.value,
-          [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE - HEADER_MIN_HEIGHT],
+          [
+            0,
+            HEADER_SCROLL_DISTANCE / 2,
+            HEADER_SCROLL_DISTANCE - HEADER_MIN_HEIGHT,
+          ],
           [0, 0.4, 1],
         ),
       };
@@ -657,11 +641,9 @@ const ProductDetailScreen = () => {
       <Animated.View
         style={[
           {
-            // height: HEADER_MAX_HEIGHT.value.height,
             width: '100%',
             backgroundColor: NeutralColors.light0,
           },
-          animationStyle1,
         ]}>
         <Animated.View style={[headerAnim]}>
           <View
@@ -782,12 +764,12 @@ const ProductDetailScreen = () => {
             style={[
               {
                 zIndex: 2,
-                // height: expanded ? 124 : 53,
                 marginHorizontal: 16,
                 borderRadius: 16,
                 borderWidth: 1,
                 borderColor: NeutralColors.light40,
                 marginTop: 20,
+                marginBottom: 20,
               },
               animationStyle,
             ]}>
@@ -819,22 +801,22 @@ const ProductDetailScreen = () => {
                 </View>
               </View>
               <View style={{justifyContent: 'center', alignItems: 'center'}}>
+                <Animated.View style={IconRotationStyle}>
                 <FastImage
-                  source={expanded ? Icons.arrow_up : Icons.arrow_down}
+                  source={Icons.arrow_down}
                   style={{width: 12, height: 12}}
                   tintColor={NeutralColors.mid400}
-                />
+                /></Animated.View>
               </View>
             </View>
-            {expanded && (
-              <View style={{marginTop: 8, marginHorizontal: 15}}>
-                <AppFont
-                  fontType="CAPTION1REG"
-                  title="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
-                  color={NeutralColors.mid400}
-                />
-              </View>
-            )}
+            <Animated.View
+              style={[{marginTop: 8, marginHorizontal: 15}, AdvancedTextStyle]}>
+              <AppFont
+                fontType="CAPTION1REG"
+                title="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+                color={NeutralColors.mid400}
+              />
+            </Animated.View>
           </AnimatedTouchable>
           <TouchableOpacity
             onPress={() => console.log('test onPress')}
@@ -899,7 +881,6 @@ const ProductDetailScreen = () => {
   return (
     <Tabs.Container
       renderHeader={() => <Header />}
-      headerHeight={HEADER_MAX_HEIGHT.value.height} // optional
       minHeaderHeight={HEADER_MIN_HEIGHT}
       renderTabBar={props => (
         <MaterialTabBar
@@ -918,13 +899,14 @@ const ProductDetailScreen = () => {
           )}
         />
       )}
-      containerStyle={{backgroundColor: NeutralColors.light35}}
-      >
+      containerStyle={{backgroundColor: NeutralColors.light35}}>
       <Tabs.Tab
         name="Sustainability"
         label="Sustainability"
         icon={Icons.sustainability}>
-        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+        <Tabs.ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{backgroundColor: NeutralColors.light35}}>
           <SustainabilityTab />
         </Tabs.ScrollView>
         <ActionSheet
@@ -961,22 +943,30 @@ const ProductDetailScreen = () => {
         </ActionSheet>
       </Tabs.Tab>
       <Tabs.Tab name="Health" label="Health" icon={Icons.health}>
-        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+        <Tabs.ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{backgroundColor: NeutralColors.light35}}>
           <HealthTab />
         </Tabs.ScrollView>
       </Tabs.Tab>
       <Tabs.Tab name="Reviews" label="Reviews" icon={Icons.reviews}>
-        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+        <Tabs.ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{backgroundColor: NeutralColors.light35}}>
           <ThirdRoute />
         </Tabs.ScrollView>
       </Tabs.Tab>
       <Tabs.Tab name="Recycling" label="Recycling" icon={Icons.recycling}>
-        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+        <Tabs.ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{backgroundColor: NeutralColors.light35}}>
           <ThirdRoute />
         </Tabs.ScrollView>
       </Tabs.Tab>
       <Tabs.Tab name="Product Info" label="Product Info" icon={Icons.info}>
-        <Tabs.ScrollView showsVerticalScrollIndicator={false} style={{backgroundColor: NeutralColors.light35}}>
+        <Tabs.ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{backgroundColor: NeutralColors.light35}}>
           <ThirdRoute />
         </Tabs.ScrollView>
       </Tabs.Tab>
