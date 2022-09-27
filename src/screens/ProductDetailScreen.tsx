@@ -882,6 +882,7 @@ const ProductDetailScreen = () => {
     <Tabs.Container
       renderHeader={() => <Header />}
       minHeaderHeight={HEADER_MIN_HEIGHT}
+      snapThreshold={0.5}
       renderTabBar={props => (
         <MaterialTabBar
           {...props}
